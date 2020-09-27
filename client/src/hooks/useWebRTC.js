@@ -14,7 +14,7 @@ export default function useWebRTC(ws, onConnect) {
 
   const connect = (target) => {
     const connection = new RTCPeerConnection({ iceServers });
-    setConnections({ ...connections, [target]: connection });
+    setConnections(connections => ({ ...connections, [target]: connection }));
 
     connection.onicecandidate = (e) => {
       if (e.candidate) {
@@ -36,7 +36,19 @@ export default function useWebRTC(ws, onConnect) {
       ws.send("webrtc:offer", payload);
     }
 
-    connection.onconnectionstatechange = () => forceUpdate();
+    connection.onconnectionstatechange = ev => {
+      switch(connection.connectionState) {
+        case "failed":
+          console.log("connection failed", ev)
+        case "disconnected":
+        case "closed":
+          setConnections( ({ [target]: omit, ...rest }) => rest);
+          break;
+        default:
+          forceUpdate();
+          break;
+      }
+    }
 
     if(onConnect) {
       onConnect(target, connection);
@@ -47,7 +59,7 @@ export default function useWebRTC(ws, onConnect) {
 
   ws.on("webrtc:offer", async (data) => {
     const connection = connect(data.source);
-    setConnections({ ...connections, [data.source]: connection });
+    setConnections(connections => ({ ...connections, [data.source]: connection }));
 
     const desc = new RTCSessionDescription(data.sdp);
     await connection.setRemoteDescription(desc);

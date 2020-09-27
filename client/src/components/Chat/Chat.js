@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { withStyles } from '@material-ui/core/styles';
 import PersonRoundedIcon from '@material-ui/icons/PersonRounded';
 import useWebSocket from '../../hooks/useWebSocket';
 import useWebRTC from '../../hooks/useWebRTC';
-import { Call, PhoneInTalk } from '@material-ui/icons';
+import TextField from '@material-ui/core/TextField';
 
 const styles = {
   wrapper: {
@@ -38,31 +38,73 @@ const styles = {
   user: {
     position: "relative",
     borderBottom: "1px solid #eee",
-    padding: "4px",
-    cursor: "pointer",
+    padding: "4px"
   },
   userIcon: {
     verticalAlign: "middle", 
     fontSize: "18px",
     marginTop: "-4px"
   },
-  callIcon: {
-    verticalAlign: "middle", 
-    fontSize: "18px",
-    float: "right"
+  userConnected: {
+    position: "relative",
+    borderBottom: "1px solid #eee",
+    padding: "4px",
+    background: "#ecffec"
+  },
+  chatLine: {
+    display: "flex",
+  },
+  chatMessage: {
+    padding: "10px 20px",
+    textAlign: "left",
+    position: "relative",
+    background: "#000000",
+    color: "#FFFFFF",
+    fontFamily: "Arial",
+    fontSize: "20px",
+    borderRadius: "7px",
+    boxShadow: "5px 5px 5px -3px rgba(163, 163, 163, 0.4)",
+    "&:after": {
+      content: '""',
+      position: "absolute",
+      display: "block",
+      width: 0,
+      zIndex: 1,
+      borderStyle: "solid",
+      borderWidth: "16px 17px 0 0",
+      borderColor: "#000000 transparent transparent transparent",
+      bottom: "-10px",
+      left: "18px",
+      marginLeft: "-8.5px",
+    }
+  },
+  chatUser: {
+    alignSelf: "flex-end",
+    marginBottom: "-20px",
+    marginRight: "-5px",
+    fontWeight: "bold",
+    textAlign: "left",
+    position: "relative",
   }
 }
 
 const Chat = ({classes}) => {
+  const [, updateState] = useState();
+  const forceUpdate = useCallback(() => updateState({}), []);
   const [users, setUsers] = useState([]);
+  const [chatLines, setChatLines] = useState([]);
+  const newMessage = (userId, message) => {
+    setChatLines((chatLines) => [...chatLines, { userId, message: message.split('\n') }]);
+  }
+
   // logging
   const [logLines, setLogLines] = useState([]);
   const writeToLog = (text) => {
-    setLogLines((output) => [...output, text]);
+    setLogLines((logLines) => [...logLines, text]);
   }
   const logElemRef = useRef(null);
   useEffect(() => {
-    logElemRef.current.scrollTop = logElemRef.current.scrollHeight;
+    if(logElemRef.current) logElemRef.current.scrollTop = logElemRef.current.scrollHeight;
   }, [logLines]);
   // webrtc stuff
   const userVideo = useRef();
@@ -95,6 +137,7 @@ const Chat = ({classes}) => {
   })
   ws.on("handshake", (data) => {
     setUsers(data.users);
+    call(data.users);
   });
   ws.on("user:connect", (data) => {
     setUsers((users) => [...users, data.user]);
@@ -108,38 +151,48 @@ const Chat = ({classes}) => {
 
   const wRTC = useWebRTC(ws, (target, connection) => {
     connection.ondatachannel = (e) => {
-      e.channel.onmessage = (e) => writeToLog(e.data);
+      e.channel.onmessage = (e) => newMessage(target, e.data);
       e.channel.onopen = () => {
+        connection.msgChannel = e.channel;
         writeToLog("Incoming Data Channel Opened");
-        e.channel.send("hej själv!");
       }
-      e.channel.onclose = () => writeToLog("Incoming Data Channel Cloased");
+      e.channel.onclose = () => {
+        connection.msgChannel = null;
+        writeToLog("Incoming Data Channel Cloased");
+      }
     };
-    connection.ontrack = (e, connection) => {
+    connection.ontrack = (e) => {
       partnerVideo.current.srcObject = e.streams[0];
     };
-    // onOffer: (id, connection) => {
-    //   userStream.current.getTracks().forEach(track => connection.addTrack(track, userStream.current));
-    //   return true;
-    // },
   });
 
-  const call = async (userId) => {
-    writeToLog('calling: ' + userId);
-    const connection = wRTC.connect(userId);
-    const sendChannel = connection.createDataChannel('sendDataChannel');
-    sendChannel.onmessage = (e) => writeToLog(e.data);
-    sendChannel.onopen = () => {
-      writeToLog("Data Channel Opened");
-      sendChannel.send("hej!");
-    };
-    sendChannel.onclose = () => writeToLog("Data Channel Closed");
+  const call = async (callUsers) => {
+    callUsers.forEach(user => {
+      writeToLog('calling: ' + user.name);
+      const connection = wRTC.connect(user.id);
+      const msgChannel = connection.createDataChannel('sendDataChannel');
+      msgChannel.onmessage = (e) => newMessage(user.id, e.data);
+      msgChannel.onopen = () => {
+        connection.msgChannel = msgChannel;
+        writeToLog("Data Channel Opened to " + user.name);
+      };
+      msgChannel.onclose = () => {
+        connection.msgChannel = null;
+        writeToLog("Data Channel Closed");
+      }
+    });
     
-    userStream.current && userStream.current.getTracks().forEach(track => connection.addTrack(track, userStream.current));
+    // userStream.current && userStream.current.getTracks().forEach(track => connection.addTrack(track, userStream.current));
   }
 
-
-
+  const sendMessage = (message) => {
+    newMessage("me" ,message);
+    users.forEach(user => {
+      if(user.id in wRTC.connections && wRTC.connections[user.id].msgChannel) {
+        wRTC.connections[user.id].msgChannel.send(message);
+      }
+    });
+  }
 
 
   return (
@@ -147,19 +200,42 @@ const Chat = ({classes}) => {
       { ws.isConnected && users.length ? 
         <div className={classes.users}>
           {users.map((user, idx) => 
-            <div className={classes.user} key={user.id} onClick={() => call(user.id)}>
+            <div className={user.id in wRTC.connections && wRTC.connections[user.id].connectionState === 'connected' ? classes.userConnected : classes.user} key={user.id}>
               <PersonRoundedIcon className={classes.userIcon} />
               {user.name || user.id}
-              {user.id in wRTC.connections === false ? <Call className={classes.callIcon} /> : wRTC.connections[user.id].connectionState === "connected" ? <PhoneInTalk className={classes.callIcon} /> : "hej"}
             </div>)
           }
         </div>
         : undefined
       }
       <main className={classes.pageMain}>
-        <video style={{width: 500}} autoPlay ref={userVideo} />
-        <video style={{width: 500}} autoPlay ref={partnerVideo} />
+        {/* <video style={{width: 500}} autoPlay ref={userVideo} />
+        <video style={{width: 500}} autoPlay ref={partnerVideo} /> */}
       </main>
+        {chatLines.map((line, idx) => <React.Fragment key={idx}><div className={classes.chatLine}><div className={classes.chatUser}>{"hej"}</div><div className={classes.chatMessage}>{line.message.map((p, idx) => <div key={idx}>{p}</div>)}</div></div></React.Fragment>)}
+      <TextField
+          // className={classes.chatInput}
+          InputProps={{
+            onKeyDown: (e) => {
+              if (e.key === 'Enter' && !e.ctrlKey) {
+                e.preventDefault();
+              }
+              else if (e.key === 'Enter' && e.ctrlKey) {
+                e.target.value = e.target.value + "\n";
+                forceUpdate()
+              }
+            },
+            onKeyUp: (e) => {
+              if (e.key === 'Enter' && !e.ctrlKey) {
+                sendMessage(e.target.value)
+                e.target.value = '';
+              }
+            }
+          }}
+          placeholder="message"
+          variant="outlined"
+          multiline={true}
+        />
       <footer className={classes.pageFooter} ref={logElemRef}>
         {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
       </footer>
