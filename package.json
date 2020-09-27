@@ -1,0 +1,21 @@
+{
+  "name": "webrtc-test",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "client": "cd client && yarn start",
+    "server": "nodemon server.js",
+    "dev": "concurrently --kill-others-on-fail \"yarn server\" \"yarn client\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v18.5.0",
+    "uuid": "^8.3.0"
+  },
+  "devDependencies": {
+    "concurrently": "^4.0.1"
+  }
+}
