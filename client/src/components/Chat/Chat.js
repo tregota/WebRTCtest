@@ -4,6 +4,7 @@ import PersonRoundedIcon from '@material-ui/icons/PersonRounded';
 import useWebSocket from '../../hooks/useWebSocket';
 import useWebRTC from '../../hooks/useWebRTC';
 import TextField from '@material-ui/core/TextField';
+import Message from './Message'
 
 const styles = {
   wrapper: {
@@ -51,40 +52,8 @@ const styles = {
     padding: "4px",
     background: "#ecffec"
   },
-  chatLine: {
-    display: "flex",
-  },
-  chatMessage: {
-    padding: "10px 20px",
-    textAlign: "left",
-    position: "relative",
-    background: "#000000",
-    color: "#FFFFFF",
-    fontFamily: "Arial",
-    fontSize: "20px",
-    borderRadius: "7px",
-    boxShadow: "5px 5px 5px -3px rgba(163, 163, 163, 0.4)",
-    "&:after": {
-      content: '""',
-      position: "absolute",
-      display: "block",
-      width: 0,
-      zIndex: 1,
-      borderStyle: "solid",
-      borderWidth: "16px 17px 0 0",
-      borderColor: "#000000 transparent transparent transparent",
-      bottom: "-10px",
-      left: "18px",
-      marginLeft: "-8.5px",
-    }
-  },
-  chatUser: {
-    alignSelf: "flex-end",
-    marginBottom: "-20px",
-    marginRight: "-5px",
-    fontWeight: "bold",
-    textAlign: "left",
-    position: "relative",
+  chat: {
+    overflow: "hidden"
   }
 }
 
@@ -94,7 +63,7 @@ const Chat = ({classes}) => {
   const [users, setUsers] = useState([]);
   const [chatLines, setChatLines] = useState([]);
   const newMessage = (userId, message) => {
-    setChatLines((chatLines) => [...chatLines, { userId, message: message.split('\n') }]);
+    setChatLines((chatLines) => [...chatLines, { userId, message: message }]);
   }
 
   // logging
@@ -212,23 +181,23 @@ const Chat = ({classes}) => {
         {/* <video style={{width: 500}} autoPlay ref={userVideo} />
         <video style={{width: 500}} autoPlay ref={partnerVideo} /> */}
       </main>
-        {chatLines.map((line, idx) => <React.Fragment key={idx}><div className={classes.chatLine}><div className={classes.chatUser}>{"hej"}</div><div className={classes.chatMessage}>{line.message.map((p, idx) => <div key={idx}>{p}</div>)}</div></div></React.Fragment>)}
+      <div className={classes.chat}>
+        {chatLines.map((line, idx) => <Message key={idx} users={users} userId={line.userId} message={line.message} outgoing={line.userId==="me"} />)}
+      </div>
       <TextField
           // className={classes.chatInput}
           InputProps={{
             onKeyDown: (e) => {
               if (e.key === 'Enter' && !e.ctrlKey) {
+                if(e.target.value) {
+                  sendMessage(e.target.value)
+                  e.target.value = '';
+                }
                 e.preventDefault();
               }
               else if (e.key === 'Enter' && e.ctrlKey) {
                 e.target.value = e.target.value + "\n";
                 forceUpdate()
-              }
-            },
-            onKeyUp: (e) => {
-              if (e.key === 'Enter' && !e.ctrlKey) {
-                sendMessage(e.target.value)
-                e.target.value = '';
               }
             }
           }}
@@ -236,9 +205,9 @@ const Chat = ({classes}) => {
           variant="outlined"
           multiline={true}
         />
-      <footer className={classes.pageFooter} ref={logElemRef}>
+      {/* <footer className={classes.pageFooter} ref={logElemRef}>
         {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
-      </footer>
+      </footer> */}
     </div>
   )
 };
