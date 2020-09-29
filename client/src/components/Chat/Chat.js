@@ -118,37 +118,15 @@ const Chat = ({classes}) => {
     setUsers((users) => [...users.filter(u => u.id !== data.user.id), data.user]);
   });
 
-  const wRTC = useWebRTC(ws, (target, connection) => {
-    connection.ondatachannel = (e) => {
-      e.channel.onmessage = (e) => newMessage(target, e.data);
-      e.channel.onopen = () => {
-        connection.msgChannel = e.channel;
-        writeToLog("Incoming Data Channel Opened");
-      }
-      e.channel.onclose = () => {
-        connection.msgChannel = null;
-        writeToLog("Incoming Data Channel Cloased");
-      }
-    };
-    connection.ontrack = (e) => {
-      partnerVideo.current.srcObject = e.streams[0];
-    };
-  });
+  const wRTC = useWebRTC(ws);
+  wRTC.on('message', (message) => {
+    newMessage(message.source, message.data);
+  })
 
   const call = async (callUsers) => {
     callUsers.forEach(user => {
       writeToLog('calling: ' + user.name);
       const connection = wRTC.connect(user.id);
-      const msgChannel = connection.createDataChannel('sendDataChannel');
-      msgChannel.onmessage = (e) => newMessage(user.id, e.data);
-      msgChannel.onopen = () => {
-        connection.msgChannel = msgChannel;
-        writeToLog("Data Channel Opened to " + user.name);
-      };
-      msgChannel.onclose = () => {
-        connection.msgChannel = null;
-        writeToLog("Data Channel Closed");
-      }
     });
     
     // userStream.current && userStream.current.getTracks().forEach(track => connection.addTrack(track, userStream.current));
@@ -156,13 +134,16 @@ const Chat = ({classes}) => {
 
   const sendMessage = (message) => {
     newMessage("me" ,message);
-    users.forEach(user => {
-      if(user.id in wRTC.connections && wRTC.connections[user.id].msgChannel) {
-        wRTC.connections[user.id].msgChannel.send(message);
-      }
-    });
+    wRTC.send('message', message);
   }
 
+  const test = () => {
+    writeToLog("test");
+    navigator.mediaDevices.getDisplayMedia({ cursor: true }).then(stream => {
+      userVideo.current.srcObject = stream;
+      userStream.current = stream;
+    });
+  }
 
   return (
     <div className={classes.wrapper}>
@@ -205,9 +186,10 @@ const Chat = ({classes}) => {
           variant="outlined"
           multiline={true}
         />
-      {/* <footer className={classes.pageFooter} ref={logElemRef}>
+      <footer className={classes.pageFooter} ref={logElemRef}>
         {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
-      </footer> */}
+        <button onClick={() => test()}>test</button>
+      </footer>
     </div>
   )
 };

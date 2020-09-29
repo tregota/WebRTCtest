@@ -9,6 +9,7 @@ const styles = {
   },
 
   chatMessage: {
+    marginRight: "50px",
     padding: "10px 20px",
     textAlign: "left",
     position: "relative",
@@ -68,6 +69,18 @@ const styles = {
     fontWeight: "bold",
     textAlign: "left",
     position: "relative",
+  },
+
+  columnLeft: {
+    display: "flex",
+    position: "relative",
+    flexGrow: 1,
+    justifyContent: "flex-end"
+  },
+  columnRight: {
+    display: "flex",
+    position: "relative",
+    flexGrow: 1,
   }
 }
 
@@ -75,8 +88,12 @@ const Message = ({classes, users, userId, message, outgoing = false}) => {
   const user = users.find(u => u.id === userId);
   return (
     <div className={classes.chatLine}>
-        <div className={classes.chatUser}>{user ? user.name : userId === 'me' ? '' : userId}</div>
+      { outgoing && <div className={classes.columnLeft} /> }
+      <div className={outgoing ? classes.columnRight : classes.columnLeft} >
+        { !outgoing && <div className={classes.chatUser}>{user ? user.name : userId}</div>}
         <div className={outgoing ? classes.myMessage : classes.chatMessage}>{message.split('\n').map((p, idx) => <div key={idx}>{p}</div>)}</div>
+      </div>
+      { !outgoing && <div className={classes.columnRight} /> }
     </div>
   )
 };
