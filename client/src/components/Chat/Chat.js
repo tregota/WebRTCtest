@@ -78,7 +78,7 @@ const Chat = ({classes}) => {
   // webrtc stuff
   const userVideo = useRef();
   const partnerVideo = useRef();
-  const userStream = useRef();
+  const userStream = useRef(null);
 
   useEffect(() => {
     // if(userStream.current == null && navigator.mediaDevices) {
@@ -117,6 +117,9 @@ const Chat = ({classes}) => {
   ws.on("user:rename", (data) => {
     setUsers((users) => [...users.filter(u => u.id !== data.user.id), data.user]);
   });
+  ws.on("close", () => {
+    writeToLog("websocket disconnected");
+  });
 
   const wRTC = useWebRTC(ws);
   wRTC.on('message', (message) => {
@@ -137,12 +140,25 @@ const Chat = ({classes}) => {
     wRTC.send('message', message);
   }
 
-  const test = () => {
+  const test = async () => {
     writeToLog("test");
-    navigator.mediaDevices.getDisplayMedia({ cursor: true }).then(stream => {
-      userVideo.current.srcObject = stream;
-      userStream.current = stream;
-    });
+    if(userStream.current === null) {
+      userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+    }
+    const pc = Object.values(wRTC.connections)[0];
+    const senders = pc.getSenders();
+    if(senders.length){
+      if ("removeTrack" in pc) {
+        pc.removeTrack(pc.getSenders()[0]);
+      } else {
+        pc.removeStream(userStream.current);
+      }
+    }
+    console.log(userStream.current);
+    pc.addStream(userStream.current);
+      // userVideo.current.srcObject = stream;
+      // userStream.current = stream;
+
   }
 
   return (

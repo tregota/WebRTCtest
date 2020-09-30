@@ -15,11 +15,11 @@ export default function useWebRTC(ws) {
 
   const emitEvent = (type, source, data) => {
     if(source && type+':'+source in observers.current) {
-      observers.current[type+':'+source]({type, data, source});
+      observers.current[type+':'+source]({...data, type, source});
       return true;
     }
     else if(type in observers.current) {
-      observers.current[type]({type, data, source});
+      observers.current[type]({...data, type, source});
       return true;
     }
     return false;
@@ -31,12 +31,11 @@ export default function useWebRTC(ws) {
       connection.msgChannel = connection.createDataChannel('msgChannel');
       connection.msgChannel.onmessage = (e) => {
         const parsed = JSON.parse(e.data);
-        const { type, data } = parsed;
+        const { type, ...data } = parsed;
         if(!emitEvent(type, target, data)) {
           emitEvent('default', target, parsed)
         }
       }
-      connection.send = (type, data) => connection.msgChannel.send(JSON.stringify({type, data}));
     }
     else {
       connection.msgChannel = null;
@@ -44,7 +43,7 @@ export default function useWebRTC(ws) {
 
     setConnections(connections => ({ ...connections, [target]: connection }));
 
-    connection.onicecandidate = (e) => {
+    connection.addEventListener('icecandidate', (e) => {
       if (e.candidate) {
         const payload = {
           target,
@@ -52,9 +51,9 @@ export default function useWebRTC(ws) {
         }
         ws.send("webrtc:ice-candidate", payload);
       }
-    };
+    });
 
-    connection.onnegotiationneeded = async () => {
+    connection.addEventListener('negotiationneeded', async () => {
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
       const payload = {
@@ -62,18 +61,17 @@ export default function useWebRTC(ws) {
         sdp: connection.localDescription
       };
       if(connection.msgChannel && connection.msgChannel.readyState === 'open') {
-        connection.send("webrtc:offer", payload);
+        connection.msgChannel.send(JSON.stringify({type: "webrtc:offer", ...payload}));
       }
       else {
         ws.send("webrtc:offer", payload);
       }
-    }
+    });
 
-    connection.onconnectionstatechange = ev => {
-      console.log("connection to", target, connection.connectionState)
+    connection.addEventListener('connectionstatechange', e => {
       switch(connection.connectionState) {
         case "failed":
-          console.log("connection failed", ev)
+          console.log("connection failed", e)
           break;
         case "disconnected":
         case "closed":
@@ -83,19 +81,18 @@ export default function useWebRTC(ws) {
           forceUpdate();
           break;
       }
-    }
+    });
 
     connection.addEventListener('datachannel', (e) => {
       if(e.channel.label === 'msgChannel') {
         connection.msgChannel = e.channel;
         connection.msgChannel.onmessage = (e) => {
           const parsed = JSON.parse(e.data);
-          const { type, data } = parsed;
+          const { type, ...data } = parsed;
           if(!emitEvent(type, target, data)) {
             emitEvent('default', target, parsed)
           }
         };
-        connection.send = (type, data) => connection.msgChannel.send(JSON.stringify({type, data}));
       }
     });
 
@@ -137,8 +134,10 @@ export default function useWebRTC(ws) {
   });
 
   observers.current["webrtc:offer"] = async (data) => {
-    const payload = await makeAnswer(data);
-    connections[data.source].send("webrtc:answer", payload);
+    if(connections[data.source].msgChannel && connections[data.source].msgChannel.readyState === 'open') {
+      const payload = await makeAnswer(data);
+      connections[data.source].msgChannel.send(JSON.stringify({type: "webrtc:answer", ...payload}));
+    }
   };
   observers.current["webrtc:answer"] = onAnswer;
 
@@ -148,15 +147,18 @@ export default function useWebRTC(ws) {
     on: (type, func) => observers.current[type] = func,
     onFrom: (type, source, func) => observers.current[type+':'+source] = func,
     send: (type, data, target = null) => {
+      if(typeof data !== 'object' || data === null) {
+        data = { data };
+      }
       if(target) {
         if(target in connections && connections[target].msgChannel && connections[target].msgChannel.readyState === 'open') {
-          connections[target].send(type, data);
+          connections[target].msgChannel.send(JSON.stringify({type, ...data}));
         }
       }
       else {
         for(const connection of Object.values(connections)) {
           if(connection.msgChannel && connection.msgChannel.readyState === 'open') {
-            connection.send(type, data);
+            connection.msgChannel.send(JSON.stringify({type, ...data}));
           }
         }
       }
