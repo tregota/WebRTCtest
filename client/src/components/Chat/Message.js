@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { withStyles } from '@material-ui/core/styles';
-import useWebRTC from '../../hooks/useWebRTC';
 
 const styles = {
   chatLine: {

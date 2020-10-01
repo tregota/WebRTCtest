@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function useWebSocket(props) {
+export default function useWebSocket({ 
+  url, 
+  protocols, 
+  keepAlive = false, // Send "pings" every 20 seconds. Server must support fake pings. Also checks that server is still there.
+}) {
   const [isConnected, setConnected] = useState(false);
   const webSocket = useRef();
   const observers = useRef({});
@@ -28,12 +32,6 @@ export default function useWebSocket(props) {
     let keepAliveInterval = null;
     let isAlive = null;
     let pingTimer = null;
-
-    const { 
-      url, 
-      protocols,
-      keepAlive = false, // Send "pings" every 20 seconds. Server must support fake pings. Also checks that server is still there.
-    } = props;
 
     if(!url) {
       throw new Error("useWebSocket prop url is missing!")
@@ -111,7 +109,7 @@ export default function useWebSocket(props) {
         webSocket.current.close();
       }
     }
-  }, [JSON.stringify(props)]); // too hacky?
+  }, [keepAlive, protocols, url]);
 
   return {
     send: (type, payload) => send(JSON.stringify({ type, ...payload })),

@@ -49,7 +49,13 @@ export default function useWebRTC(ws) {
           target,
           candidate: e.candidate,
         }
-        ws.send("webrtc:ice-candidate", payload);
+        
+        if(connection.msgChannel && connection.msgChannel.readyState === 'open') {
+          connection.msgChannel.send(JSON.stringify({type: "webrtc:ice-candidate", ...payload}));
+        }
+        else {
+          ws.send("webrtc:ice-candidate", payload);
+        }
       }
     });
 
@@ -96,12 +102,17 @@ export default function useWebRTC(ws) {
       }
     });
 
+    connection.addEventListener('track', e => emitEvent('track', target, { streams: e.streams }))
+
     return connection;
   }
 
   const makeAnswer = async (data) => {
-    const connection = connect(data.source, true);
-    setConnections(connections => ({ ...connections, [data.source]: connection }));
+    let connection = connections[data.source];
+    if(!connection) {
+      connection = connect(data.source, true);
+      setConnections(connections => ({ ...connections, [data.source]: connection }));
+    }
 
     const desc = new RTCSessionDescription(data.sdp);
     await connection.setRemoteDescription(desc);
@@ -134,12 +145,14 @@ export default function useWebRTC(ws) {
   });
 
   observers.current["webrtc:offer"] = async (data) => {
-    if(connections[data.source].msgChannel && connections[data.source].msgChannel.readyState === 'open') {
-      const payload = await makeAnswer(data);
-      connections[data.source].msgChannel.send(JSON.stringify({type: "webrtc:answer", ...payload}));
-    }
+    const payload = await makeAnswer(data);
+    connections[data.source].msgChannel.send(JSON.stringify({type: "webrtc:answer", ...payload}));
   };
   observers.current["webrtc:answer"] = onAnswer;
+  observers.current["webrtc:ice-candidate"] = async (data) => {
+    const candidate = new RTCIceCandidate(data.candidate);
+    await connections[data.source].addIceCandidate(candidate);
+  };
 
   return {
     connections,

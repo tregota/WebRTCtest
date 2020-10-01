@@ -76,7 +76,7 @@ const Chat = ({classes}) => {
     if(logElemRef.current) logElemRef.current.scrollTop = logElemRef.current.scrollHeight;
   }, [logLines]);
   // webrtc stuff
-  const userVideo = useRef();
+  // const userVideo = useRef();
   const partnerVideo = useRef();
   const userStream = useRef(null);
 
@@ -125,11 +125,14 @@ const Chat = ({classes}) => {
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);
   })
+  wRTC.on('track', e => {
+    partnerVideo.current.srcObject = e.streams[0];
+  })
 
   const call = async (callUsers) => {
     callUsers.forEach(user => {
       writeToLog('calling: ' + user.name);
-      const connection = wRTC.connect(user.id);
+      wRTC.connect(user.id);
     });
     
     // userStream.current && userStream.current.getTracks().forEach(track => connection.addTrack(track, userStream.current));
@@ -142,22 +145,19 @@ const Chat = ({classes}) => {
 
   const test = async () => {
     writeToLog("test");
-    if(userStream.current === null) {
-      userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
-    }
-    const pc = Object.values(wRTC.connections)[0];
-    const senders = pc.getSenders();
-    if(senders.length){
-      if ("removeTrack" in pc) {
-        pc.removeTrack(pc.getSenders()[0]);
-      } else {
-        pc.removeStream(userStream.current);
+    userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+    for(const connection of Object.values(wRTC.connections)) {
+      const senders = connection.getSenders();
+      if(senders.length){
+        if ("removeTrack" in connection) {
+          connection.removeTrack(connection.getSenders()[0]);
+        } else {
+          connection.removeStream(userStream.current);
+        }
       }
+      connection.addStream(userStream.current);
     }
-    console.log(userStream.current);
-    pc.addStream(userStream.current);
-      // userVideo.current.srcObject = stream;
-      // userStream.current = stream;
+
 
   }
 
@@ -175,8 +175,8 @@ const Chat = ({classes}) => {
         : undefined
       }
       <main className={classes.pageMain}>
-        {/* <video style={{width: 500}} autoPlay ref={userVideo} />
-        <video style={{width: 500}} autoPlay ref={partnerVideo} /> */}
+        {/* <video style={{width: 500}} autoPlay ref={userVideo} />*/}
+        <video style={{width: 500}} autoPlay ref={partnerVideo} /> 
       </main>
       <div className={classes.chat}>
         {chatLines.map((line, idx) => <Message key={idx} users={users} userId={line.userId} message={line.message} outgoing={line.userId==="me"} />)}
