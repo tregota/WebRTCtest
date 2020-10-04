@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { withStyles } from '@material-ui/core/styles';
 import PersonRoundedIcon from '@material-ui/icons/PersonRounded';
 import useWebSocket from '../../hooks/useWebSocket';
-import useWebRTC from '../../hooks/useWebRTC';
+import useMessaging from '../../hooks/useMessaging';
 import TextField from '@material-ui/core/TextField';
 import Message from './Message'
 
@@ -121,7 +121,7 @@ const Chat = ({classes}) => {
     writeToLog("websocket disconnected");
   });
 
-  const wRTC = useWebRTC(ws);
+  const wRTC = useMessaging(ws);
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);
   })
