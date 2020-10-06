@@ -1,41 +1,22 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import WebRTCConnection from '../classes/WebRTCConnection'
 
-const iceServers = [
-  {
-      urls: "stun:stun.stunprotocol.org"
-  }
-  // currently no turn server
-];
 
-export default function useWebRTC(bus = { on: () => {}, send: () => {} }, onIncomingConnection) {
+
+export default function useWebRTC(ws) {
   const [, updateState] = useState();
   const forceUpdate = useCallback(() => updateState({}), []);
   const [connections, setConnections] = useState({});
+  const observers = useRef({});
 
-
-  const connect = (target) => {
-    const connection = new RTCPeerConnection({ iceServers });
+  const connect = (target, offer) => {
+    const connection = new WebRTCConnection({ 
+      target,
+      sendFunc: ws.send,
+      offer,
+      onMessage: (type, data) => { return type in observers.current ? observers.current[type](data) : null; }
+    });
     setConnections(connections => ({ ...connections, [target]: connection }));
-
-    connection.addEventListener('icecandidate', (e) => {
-      if (e.candidate) {
-        const payload = {
-          target,
-          candidate: e.candidate,
-        }
-        bus.send("webrtc:ice-candidate", payload);
-      }
-    });
-
-    connection.addEventListener('negotiationneeded', async () => {
-      const offer = await connection.createOffer();
-      await connection.setLocalDescription(offer);
-      const payload = {
-        target,
-        sdp: connection.localDescription
-      };
-      bus.send("webrtc:offer", payload);
-    });
 
     connection.addEventListener('connectionstatechange', e => {
       switch(connection.connectionState) {
@@ -53,44 +34,40 @@ export default function useWebRTC(bus = { on: () => {}, send: () => {} }, onInco
     return connection;
   }
 
-  bus.on("webrtc:offer", async (data) => {
-    let connection = connections[data.source];
-    if(!connection) {
-      connection = connect(data.source);
-      setConnections(connections => ({ ...connections, [data.source]: connection }));
-      if(onIncomingConnection) {
-        onIncomingConnection(data.source, connection);
-      }
-    }
-
-    const desc = new RTCSessionDescription(data.sdp);
-    await connection.setRemoteDescription(desc);
-    const answer = await connection.createAnswer();
-    await connection.setLocalDescription(answer);
-
-    const payload = {
-      target: data.source,
-      sdp: connection.localDescription
-    }
-    bus.send("webrtc:answer", payload);
+  ws.on("webrtc:offer", async (data) => {
+    connect(data.source, data);
   });
 
-  bus.on("webrtc:answer", async (data) => {
+  ws.on("webrtc:answer", async (data) => {
     if(data.source in connections) {
-      const desc = new RTCSessionDescription(data.sdp);
-      await connections[data.source].setRemoteDescription(desc);
+      await connections[data.source].setRemoteDescription(data.sdp);
     }
   });
 
-  bus.on("webrtc:ice-candidate", async (data) => {
+  ws.on("webrtc:ice-candidate", async (data) => {
     if(data.source in connections) {
-      const candidate = new RTCIceCandidate(data.candidate);
-      await connections[data.source].addIceCandidate(candidate);
+      await connections[data.source].addIceCandidate(data.candidate);
     }
   });
 
   return {
     connections,
-    connect
+    connect,
+    on: (type, func) => observers.current[type] = func,
+    send: (type, data, target = null) => {
+      if(typeof data !== 'object' || data === null) {
+        data = { data };
+      }
+      if(target) {
+        if(target in connections) {
+          connections[target].send(type, data);
+        }
+      }
+      else {
+        for(const connection of Object.values(connections)) {
+          connection.send(type, data);
+        }
+      }
+    }
   }
 }

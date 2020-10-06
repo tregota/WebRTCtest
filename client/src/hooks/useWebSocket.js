@@ -1,19 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 export default function useWebSocket({ 
   url, 
   protocols, 
   keepAlive = false, // Send "pings" every 20 seconds. Server must support fake pings. Also checks that server is still there.
 }) {
-  const [isConnected, setConnected] = useState(false);
+  const [, updateState] = useState();
+  const forceUpdate = useCallback(() => updateState({}), []);
   const webSocket = useRef();
   const observers = useRef({});
 
   const send = (msg) => {
     if(webSocket.current === null) {
-      throw new Error("Not Connected");
+      return false;
     }
     webSocket.current.send(msg); 
+    return true;
   }
 
   const emitEvent = (type, source, data) => {
@@ -40,7 +42,6 @@ export default function useWebSocket({
     webSocket.current = new WebSocket(url, protocols);
   
     webSocket.current.onopen = () => {
-      setConnected(true)
       isAlive = true;
       
       if(keepAlive) {
@@ -61,6 +62,7 @@ export default function useWebSocket({
       }
 
       emitEvent('open');
+      forceUpdate();
     };
   
     webSocket.current.onmessage = async (event) => {
@@ -88,7 +90,6 @@ export default function useWebSocket({
     };
 
     webSocket.current.onclose = () => {
-      setConnected(false);
       webSocket.current = null;
 
       if(keepAliveInterval !== null) {
@@ -97,6 +98,7 @@ export default function useWebSocket({
       }
 
       emitEvent('close');
+      forceUpdate();
     };
   
     webSocket.current.onerror = (e) => emitEvent('error', undefined, e);
@@ -112,12 +114,12 @@ export default function useWebSocket({
   }, [keepAlive, protocols, url]);
 
   return {
-    send: (type, payload) => send(JSON.stringify({ type, ...payload })),
+    send: (type, payload) => send( payload ? JSON.stringify({ type, ...payload }) : type ),
     close: () => {
       return webSocket.current.close();
     },
     on: (type, func) => observers.current[type] = func,
     onFrom: (type, source, func) => observers.current[type+':'+source] = func,
-    isConnected
+    isOpen: () => webSocket.current && webSocket.current.readyState === 1
   }
 }

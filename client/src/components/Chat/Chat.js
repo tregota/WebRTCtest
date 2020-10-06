@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { withStyles } from '@material-ui/core/styles';
 import PersonRoundedIcon from '@material-ui/icons/PersonRounded';
 import useWebSocket from '../../hooks/useWebSocket';
-import useMessaging from '../../hooks/useMessaging';
+import useWebRTC from '../../hooks/useWebRTC';
 import TextField from '@material-ui/core/TextField';
 import Message from './Message'
 
@@ -121,7 +121,7 @@ const Chat = ({classes}) => {
     writeToLog("websocket disconnected");
   });
 
-  const wRTC = useMessaging(ws);
+  const wRTC = useWebRTC(ws);
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);
   })
@@ -163,7 +163,7 @@ const Chat = ({classes}) => {
 
   return (
     <div className={classes.wrapper}>
-      { ws.isConnected && users.length ? 
+      { ws.isOpen() && users.length ? 
         <div className={classes.users}>
           {users.map((user, idx) => 
             <div className={user.id in wRTC.connections && wRTC.connections[user.id].connectionState === 'connected' ? classes.userConnected : classes.user} key={user.id}>
