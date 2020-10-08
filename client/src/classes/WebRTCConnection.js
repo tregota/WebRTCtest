@@ -15,9 +15,9 @@ export default class WebRTCConnection {
     this.onMessage = onMessage;
     this.target = target;
     
-    this.rtcPeerConnection = new RTCPeerConnection(iceServers);
+    this.rawConnection = new RTCPeerConnection(iceServers);
 
-    this.rtcPeerConnection.addEventListener('icecandidate', (e) => {
+    this.rawConnection.addEventListener('icecandidate', (e) => {
       if (e.candidate) {
         const payload = {
           target,
@@ -28,18 +28,17 @@ export default class WebRTCConnection {
       }
     });
 
-    this.rtcPeerConnection.addEventListener('negotiationneeded', async () => {
-      const offer = await this.rtcPeerConnection.createOffer();
-      await this.rtcPeerConnection.setLocalDescription(offer);
+    this.rawConnection.addEventListener('negotiationneeded', async () => {
+      const offer = await this.rawConnection.createOffer();
+      await this.rawConnection.setLocalDescription(offer);
       const payload = {
         target,
-        sdp: this.rtcPeerConnection.localDescription
+        sdp: this.rawConnection.localDescription
       };
-      
       this.send("webrtc:offer", payload);
     });
 
-    this.rtcPeerConnection.addEventListener('datachannel', (e) => {
+    this.rawConnection.addEventListener('datachannel', (e) => {
       if(e.channel.label === 'msgChannel') {
         this.msgChannel = e.channel;
         this.msgChannel.addEventListener('message', this.handleMessage.bind(this));
@@ -50,43 +49,61 @@ export default class WebRTCConnection {
       this.handleOffer(offer);
     }
     else {
-      this.msgChannel = this.rtcPeerConnection.createDataChannel('msgChannel');
+      this.msgChannel = this.rawConnection.createDataChannel('msgChannel');
       this.msgChannel.addEventListener('message', this.handleMessage.bind(this));
     }
   }
 
   async handleOffer(offer) {
     const desc = new RTCSessionDescription(offer.sdp);
-    await this.rtcPeerConnection.setRemoteDescription(desc);
-    const answer = await this.rtcPeerConnection.createAnswer();
-    await this.rtcPeerConnection.setLocalDescription(answer);
+    await this.rawConnection.setRemoteDescription(desc);
+    const answer = await this.rawConnection.createAnswer();
+    await this.rawConnection.setLocalDescription(answer);
 
     const payload = {
       target: offer.source,
-      sdp: this.rtcPeerConnection.localDescription
+      sdp: this.rawConnection.localDescription
     };
     
     this.send("webrtc:answer", payload);
   }
 
   addEventListener(type, handler) {
-    return this.rtcPeerConnection.addEventListener(type, handler);
+    return this.rawConnection.addEventListener(type, handler);
+  }
+
+  getSenders() {
+    return this.rawConnection.getSenders();
+  }
+
+  addStream(stream) {
+    return this.rawConnection.addStream(stream);
   }
 
   setRemoteDescription(sdp) {
     const desc = new RTCSessionDescription(sdp);
-    this.rtcPeerConnection.setRemoteDescription(desc);
+    this.rawConnection.setRemoteDescription(desc);
   }
 
   addIceCandidate(candidate) {
     const iceCandidate = new RTCIceCandidate(candidate);
-    this.rtcPeerConnection.addIceCandidate(iceCandidate);
+    this.rawConnection.addIceCandidate(iceCandidate);
   }
 
   handleMessage(e) {
-    if(this.onMessage) {
-      const parsed = JSON.parse(e.data);
-      const { type, ...data } = parsed;
+    const parsed = JSON.parse(e.data);
+    const { type, ...data } = parsed;
+
+    if(type === "webrtc:offer") {
+      this.handleOffer(data);
+    }
+    else if(type === "webrtc:answer") {
+      this.setRemoteDescription(data.sdp);
+    }
+    else if(type === "webrtc:ice-candidate") {
+      this.addIceCandidate(data.candidate);
+    }
+    else if(this.onMessage) {
       this.onMessage(type, { source: this.target, ...data });
     }
   }

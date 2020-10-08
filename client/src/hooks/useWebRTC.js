@@ -3,7 +3,7 @@ import WebRTCConnection from '../classes/WebRTCConnection'
 
 
 
-export default function useWebRTC(ws) {
+export default function useWebRTC(ws, onConnection) {
   const [, updateState] = useState();
   const forceUpdate = useCallback(() => updateState({}), []);
   const [connections, setConnections] = useState({});
@@ -12,9 +12,11 @@ export default function useWebRTC(ws) {
   const connect = (target, offer) => {
     const connection = new WebRTCConnection({ 
       target,
-      sendFunc: ws.send,
+      sendFunc: (type, data) => ws.send(type, { ...data, target }),
       offer,
-      onMessage: (type, data) => { return type in observers.current ? observers.current[type](data) : null; }
+      onMessage: (type, data) => {
+        return type in observers.current ? observers.current[type](data) : null; 
+      },
     });
     setConnections(connections => ({ ...connections, [target]: connection }));
 
@@ -31,29 +33,32 @@ export default function useWebRTC(ws) {
       }
     });
 
-    return connection;
+    onConnection(connection);
   }
 
-  ws.on("webrtc:offer", async (data) => {
+  ws.on("webrtc:offer", (data) => {
     connect(data.source, data);
   });
 
-  ws.on("webrtc:answer", async (data) => {
+  ws.on("webrtc:answer", (data) => {
     if(data.source in connections) {
-      await connections[data.source].setRemoteDescription(data.sdp);
+      connections[data.source].setRemoteDescription(data.sdp);
     }
   });
 
-  ws.on("webrtc:ice-candidate", async (data) => {
+  ws.on("webrtc:ice-candidate", (data) => {
     if(data.source in connections) {
-      await connections[data.source].addIceCandidate(data.candidate);
+      connections[data.source].addIceCandidate(data.candidate);
     }
   });
 
   return {
     connections,
     connect,
-    on: (type, func) => observers.current[type] = func,
+    on: (type, func) => {
+      observers.current[type] = func;
+      ws.on(type, func);
+    },
     send: (type, data, target = null) => {
       if(typeof data !== 'object' || data === null) {
         data = { data };

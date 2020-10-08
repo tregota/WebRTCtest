@@ -121,12 +121,13 @@ const Chat = ({classes}) => {
     writeToLog("websocket disconnected");
   });
 
-  const wRTC = useWebRTC(ws);
+  const wRTC = useWebRTC(ws, con => {
+    con.addEventListener('track', (e) => {
+      partnerVideo.current.srcObject = e.streams[0];
+    })
+  });
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);
-  })
-  wRTC.on('track', e => {
-    partnerVideo.current.srcObject = e.streams[0];
   })
 
   const call = async (callUsers) => {

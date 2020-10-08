@@ -51,6 +51,7 @@ export default function useWebSocket({
             return webSocket.current.close();
           }
           if(pingTimer >= 10) {
+            pingTimer = 0;
             // since I cant find a way of sending an actual ping via the WebSocket API:
             isAlive = false;
             send("ping"); 
@@ -71,10 +72,6 @@ export default function useWebSocket({
         if(event.data === 'pong') {
           isAlive = true;
           return;
-        }
-
-        if('message' in observers.current) {
-          observers.current.message(event);
         }
 
         const parsed = JSON.parse(event.data);
@@ -111,7 +108,7 @@ export default function useWebSocket({
         webSocket.current.close();
       }
     }
-  }, [keepAlive, protocols, url]);
+  }, [keepAlive, protocols, url, forceUpdate]);
 
   return {
     send: (type, payload) => send( payload ? JSON.stringify({ type, ...payload }) : type ),

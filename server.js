@@ -61,8 +61,14 @@ const app = uWS.App().ws('/:room', {
     }
 
     switch (data.type) {
-      case "chat":
-        ws.publish(ws.room, JSON.stringify({ type: 'chat', message: data.message, source: ws.id }), false, true);
+      case "message":
+        if (data.target in sockets) {
+          sockets[data.target].send(JSON.stringify({ ...data, type: 'message', source: ws.id }), false, true);
+        }
+        else {
+          ws.publish(ws.room, JSON.stringify({ ...data, type: 'message', source: ws.id }), false, true);
+        }
+        break;
       case "rename":
         ws.name = data.name;
         ws.publish(ws.room, JSON.stringify({ type: 'user:rename', user: { id: ws.id, name: ws.name } }), false, true);
