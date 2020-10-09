@@ -4,6 +4,7 @@ export default function useWebSocket({
   url, 
   protocols, 
   keepAlive = false, // Send "pings" every 20 seconds. Server must support fake pings. Also checks that server is still there.
+  debug
 }) {
   const [, updateState] = useState();
   const forceUpdate = useCallback(() => updateState({}), []);
@@ -14,6 +15,7 @@ export default function useWebSocket({
     if(webSocket.current === null) {
       return false;
     }
+    debug && msg !== 'ping' && console.log('Sending through WebSocket', msg)
     webSocket.current.send(msg); 
     return true;
   }
@@ -73,6 +75,8 @@ export default function useWebSocket({
           isAlive = true;
           return;
         }
+
+        debug && console.log('Received through WebSocket', event.data)
 
         const parsed = JSON.parse(event.data);
         const { type, ...data } = parsed;

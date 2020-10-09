@@ -3,7 +3,7 @@ import WebRTCConnection from '../classes/WebRTCConnection'
 
 
 
-export default function useWebRTC(ws, onConnection) {
+export default function useWebRTC(ws, { onConnection, debug }) {
   const [, updateState] = useState();
   const forceUpdate = useCallback(() => updateState({}), []);
   const [connections, setConnections] = useState({});
@@ -17,6 +17,7 @@ export default function useWebRTC(ws, onConnection) {
       onMessage: (type, data) => {
         return type in observers.current ? observers.current[type](data) : null; 
       },
+      debug
     });
     setConnections(connections => ({ ...connections, [target]: connection }));
 

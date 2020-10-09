@@ -9,11 +9,12 @@ const iceServers = [
 
 export default class WebRTCConnection {
 
-  constructor({ target, sendFunc, offer, onMessage }) {
+  constructor({ target, sendFunc, offer, onMessage, debug }) {
     this.msgChannel = null;
     this.sendFunc = sendFunc;
     this.onMessage = onMessage;
     this.target = target;
+    this.debug = debug;
     
     this.rawConnection = new RTCPeerConnection(iceServers);
 
@@ -72,14 +73,6 @@ export default class WebRTCConnection {
     return this.rawConnection.addEventListener(type, handler);
   }
 
-  getSenders() {
-    return this.rawConnection.getSenders();
-  }
-
-  addStream(stream) {
-    return this.rawConnection.addStream(stream);
-  }
-
   setRemoteDescription(sdp) {
     const desc = new RTCSessionDescription(sdp);
     this.rawConnection.setRemoteDescription(desc);
@@ -93,6 +86,8 @@ export default class WebRTCConnection {
   handleMessage(e) {
     const parsed = JSON.parse(e.data);
     const { type, ...data } = parsed;
+
+    this.debug && console.log(this.target, 'Received through WebRTC', parsed)
 
     if(type === "webrtc:offer") {
       this.handleOffer(data);
@@ -110,9 +105,11 @@ export default class WebRTCConnection {
 
   send(type, data) {
     if(this.msgChannel && this.msgChannel.readyState === 'open') {
+      this.debug && console.log(this.target, 'Sending through WebRTC', { type, ...data })
       this.msgChannel.send(JSON.stringify({ type, ...data }));
     }
     else {
+      this.debug && console.log(this.target, 'Sending through sendFunc', { type, ...data })
       this.sendFunc(type, data);
     }
   }

@@ -102,7 +102,8 @@ const Chat = ({classes}) => {
 
   const ws = useWebSocket({
     url: `ws://${window.location.hostname}:5000/${room}${window.location.search}`,
-    keepAlive: 20
+    keepAlive: 20,
+    debug: true
   })
   ws.on("handshake", (data) => {
     setUsers(data.users);
@@ -121,10 +122,13 @@ const Chat = ({classes}) => {
     writeToLog("websocket disconnected");
   });
 
-  const wRTC = useWebRTC(ws, con => {
-    con.addEventListener('track', (e) => {
-      partnerVideo.current.srcObject = e.streams[0];
-    })
+  const wRTC = useWebRTC(ws, {
+    onConnection: (con) => {
+      con.addEventListener('track', (e) => {
+        partnerVideo.current.srcObject = e.streams[0];
+      })
+    },
+    debug: true
   });
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);
@@ -148,15 +152,15 @@ const Chat = ({classes}) => {
     writeToLog("test");
     userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
     for(const connection of Object.values(wRTC.connections)) {
-      const senders = connection.getSenders();
+      const senders = connection.rawConnection.getSenders();
       if(senders.length){
-        if ("removeTrack" in connection) {
-          connection.removeTrack(connection.getSenders()[0]);
+        if ("removeTrack" in connection.rawConnection) {
+          connection.rawConnection.removeTrack(connection.rawConnection.getSenders()[0]);
         } else {
-          connection.removeStream(userStream.current);
+          connection.rawConnection.removeStream(userStream.current);
         }
       }
-      connection.addStream(userStream.current);
+      connection.rawConnection.addStream(userStream.current);
     }
 
 
