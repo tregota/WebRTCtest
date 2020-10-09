@@ -15,7 +15,7 @@ export default function useWebSocket({
     if(webSocket.current === null) {
       return false;
     }
-    debug && msg !== 'ping' && console.log('Sending through WebSocket', msg)
+    debug && msg !== 'ping' && console.log('WebSocket sending', msg)
     webSocket.current.send(msg); 
     return true;
   }
@@ -76,7 +76,7 @@ export default function useWebSocket({
           return;
         }
 
-        debug && console.log('Received through WebSocket', event.data)
+        debug && console.log('WebSocket received', event.data)
 
         const parsed = JSON.parse(event.data);
         const { type, ...data } = parsed;

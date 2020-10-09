@@ -105,11 +105,10 @@ export default class WebRTCConnection {
 
   send(type, data) {
     if(this.msgChannel && this.msgChannel.readyState === 'open') {
-      this.debug && console.log(this.target, 'Sending through WebRTC', { type, ...data })
+      this.debug && console.log('WebRTC to', this.target, JSON.stringify({ type, ...data }))
       this.msgChannel.send(JSON.stringify({ type, ...data }));
     }
     else {
-      this.debug && console.log(this.target, 'Sending through sendFunc', { type, ...data })
       this.sendFunc(type, data);
     }
   }
