@@ -62,8 +62,10 @@ const app = uWS.App().ws('/:room', {
 
     switch (data.type) {
       case "message":
-        if (data.target in sockets) {
-          sockets[data.target].send(JSON.stringify({ ...data, type: 'message', source: ws.id }), false, true);
+        if ('target' in data) {
+          if(data.target in sockets) {
+            sockets[data.target].send(JSON.stringify({ ...data, type: 'message', source: ws.id }), false, true);
+          }
         }
         else {
           ws.publish(ws.room, JSON.stringify({ ...data, type: 'message', source: ws.id }), false, true);
@@ -80,6 +82,7 @@ const app = uWS.App().ws('/:room', {
   close: (ws) => {
     const { [ws.id]: omit, ...rest } = sockets;
     sockets = rest;
+    console.log(ws.room+" "+JSON.stringify({ type: 'user:disconnect', id: ws.id }).substring(0, 50));
     app.publish(ws.room, JSON.stringify({ type: 'user:disconnect', id: ws.id }), false, true);
     console.log(`${ws.name} [${ws.id}] disconnected`);
   }

@@ -89,7 +89,7 @@ const Message = ({classes, users, userId, message, outgoing = false}) => {
     <div className={classes.chatLine}>
       { outgoing && <div className={classes.columnLeft} /> }
       <div className={outgoing ? classes.columnRight : classes.columnLeft} >
-        { !outgoing && <div className={classes.chatUser}>{user ? user.name : userId}</div>}
+        { !outgoing && <div className={classes.chatUser}>{user ? user.name + (user.online ? "" : "*") : userId}</div>}
         <div className={outgoing ? classes.myMessage : classes.chatMessage}>{message.split('\n').map((p, idx) => <div key={idx}>{p}</div>)}</div>
       </div>
       { !outgoing && <div className={classes.columnRight} /> }

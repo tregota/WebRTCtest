@@ -9,12 +9,14 @@ const iceServers = [
 
 export default class WebRTCConnection {
 
-  constructor({ target, sendFunc, offer, onMessage, debug }) {
+  constructor({ id, target, sendFunc, offer, onMessage, debug, onPassThrough }) {
     this.msgChannel = null;
+    this.id = id;
     this.sendFunc = sendFunc;
     this.onMessage = onMessage;
     this.target = target;
     this.debug = debug;
+    this.onPassThrough = onPassThrough;
     
     this.rawConnection = new RTCPeerConnection(iceServers);
 
@@ -87,9 +89,14 @@ export default class WebRTCConnection {
     const parsed = JSON.parse(e.data);
     const { type, ...data } = parsed;
 
-    this.debug && console.log(this.target, 'Received through WebRTC', parsed)
+    this.debug && console.log('WebRTC from', this.target, e.data)
 
-    if(type === "webrtc:offer") {
+    if(this.id && parsed.target && parsed.target !== this.id) {
+      if(this.onPassThrough) {
+        this.onPassThrough(this.target, parsed.target, parsed)
+      }
+    }
+    else if(type === "webrtc:offer") {
       this.handleOffer(data);
     }
     else if(type === "webrtc:answer") {

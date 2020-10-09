@@ -106,14 +106,15 @@ const Chat = ({classes}) => {
     debug: true
   })
   ws.on("handshake", (data) => {
-    setUsers(data.users);
+    setUsers(data.users.map(u => ({...u, online: true})));
     call(data.users);
   });
   ws.on("user:connect", (data) => {
-    setUsers((users) => [...users, data.user]);
+    setUsers((users) => [...users, {...data.user, online: true}]);
   });
   ws.on("user:disconnect", (data) => {
-    setUsers((users) => users.filter(u => u.id !== data.id));
+    setUsers((users) => [...users.filter(u => u.id !== data.id), { ...users.find(u => u.id === data.id), online: false }]);
+    wRTC.close(data.id);
   });
   ws.on("user:rename", (data) => {
     setUsers((users) => [...users.filter(u => u.id !== data.user.id), data.user]);
