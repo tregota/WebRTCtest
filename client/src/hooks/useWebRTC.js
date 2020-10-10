@@ -18,10 +18,12 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
         return type in observers.current ? observers.current[type](data) : null; 
       },
       debug,
-      onPassThrough: allowPassThrough === true ? (source, target, data) => {
-        if(target in connections) {
-          connections[target].send(data.type, { ...data, source });
+      onPassThrough: allowPassThrough === true ? (data) => {
+        if(data.target && data.target in connections) {
+          connections[data.target].send(data.type, { ...data, source: target });
+          return true;
         }
+        return false;
       } : undefined
     });
     setConnections(connections => ({ ...connections, [target]: connection }));

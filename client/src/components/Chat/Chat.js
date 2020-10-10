@@ -129,7 +129,8 @@ const Chat = ({classes}) => {
         partnerVideo.current.srcObject = e.streams[0];
       })
     },
-    debug: true
+    debug: true,
+    allowPassThrough: true
   });
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);

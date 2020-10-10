@@ -9,9 +9,8 @@ const iceServers = [
 
 export default class WebRTCConnection {
 
-  constructor({ id, target, sendFunc, offer, onMessage, debug, onPassThrough }) {
+  constructor({ target, sendFunc, offer, onMessage, debug, onPassThrough }) {
     this.msgChannel = null;
-    this.id = id;
     this.sendFunc = sendFunc;
     this.onMessage = onMessage;
     this.target = target;
@@ -75,16 +74,6 @@ export default class WebRTCConnection {
     return this.rawConnection.addEventListener(type, handler);
   }
 
-  setRemoteDescription(sdp) {
-    const desc = new RTCSessionDescription(sdp);
-    this.rawConnection.setRemoteDescription(desc);
-  }
-
-  addIceCandidate(candidate) {
-    const iceCandidate = new RTCIceCandidate(candidate);
-    this.rawConnection.addIceCandidate(iceCandidate);
-  }
-
   parseMessage(e) {
     const parsed = JSON.parse(e.data);
     this.handleMessage(parsed)
@@ -95,23 +84,22 @@ export default class WebRTCConnection {
 
     this.debug && console.log('Message presumably from', this.target, data)
 
-    if(this.id && data.target && data.target !== this.id) {
-      if(this.onPassThrough) {
-        this.onPassThrough(this.target, data.target, data)
+    // first check if this should be sent on
+    if(!this.onPassThrough || !this.onPassThrough(data)) {
+      if(type === "offer") {
+        this.handleOffer(data);
       }
-    }
-    else if(type === "offer") {
-      this.handleOffer(data);
-    }
-    else if(type === "answer") {
-      this.setRemoteDescription(data.sdp);
-    }
-    else if(type === "ice-candidate") {
-      console.log(data);
-      this.addIceCandidate(data.candidate);
-    }
-    else if(this.onMessage) {
-      this.onMessage(type, { ...data, source: this.target });
+      else if(type === "answer") {
+        const desc = new RTCSessionDescription(data.sdp);
+        this.rawConnection.setRemoteDescription(desc);
+      }
+      else if(type === "ice-candidate") {
+        const iceCandidate = new RTCIceCandidate(data.candidate);
+        this.rawConnection.addIceCandidate(iceCandidate);
+      }
+      else if(this.onMessage) {
+        this.onMessage(type, { ...data, source: this.target });
+      }
     }
   }
 

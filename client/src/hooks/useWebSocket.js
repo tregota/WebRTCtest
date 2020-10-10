@@ -28,7 +28,6 @@ export default function useWebSocket({
     }
 
     for (const [regex, func] of Object.values(patternObservers.current)) {
-      console.log(regex, type.match(regex));
       if (type.match(regex)) {
         func(data);
         return true;
