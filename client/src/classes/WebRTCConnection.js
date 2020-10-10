@@ -27,7 +27,7 @@ export default class WebRTCConnection {
           candidate: e.candidate,
         };
         
-        this.send("webrtc:ice-candidate", payload);
+        this.send("ice-candidate", payload);
       }
     });
 
@@ -38,13 +38,13 @@ export default class WebRTCConnection {
         target,
         sdp: this.rawConnection.localDescription
       };
-      this.send("webrtc:offer", payload);
+      this.send("offer", payload);
     });
 
     this.rawConnection.addEventListener('datachannel', (e) => {
       if(e.channel.label === 'msgChannel') {
         this.msgChannel = e.channel;
-        this.msgChannel.addEventListener('message', this.handleMessage.bind(this));
+        this.msgChannel.addEventListener('message', this.parseMessage.bind(this));
       }
     });
 
@@ -53,7 +53,7 @@ export default class WebRTCConnection {
     }
     else {
       this.msgChannel = this.rawConnection.createDataChannel('msgChannel');
-      this.msgChannel.addEventListener('message', this.handleMessage.bind(this));
+      this.msgChannel.addEventListener('message', this.parseMessage.bind(this));
     }
   }
 
@@ -68,7 +68,7 @@ export default class WebRTCConnection {
       sdp: this.rawConnection.localDescription
     };
     
-    this.send("webrtc:answer", payload);
+    this.send("answer", payload);
   }
 
   addEventListener(type, handler) {
@@ -85,28 +85,33 @@ export default class WebRTCConnection {
     this.rawConnection.addIceCandidate(iceCandidate);
   }
 
-  handleMessage(e) {
+  parseMessage(e) {
     const parsed = JSON.parse(e.data);
-    const { type, ...data } = parsed;
+    this.handleMessage(parsed)
+  }
 
-    this.debug && console.log('WebRTC from', this.target, e.data)
+  handleMessage = (data) => {
+    const { type } = data;
 
-    if(this.id && parsed.target && parsed.target !== this.id) {
+    this.debug && console.log('Message presumably from', this.target, data)
+
+    if(this.id && data.target && data.target !== this.id) {
       if(this.onPassThrough) {
-        this.onPassThrough(this.target, parsed.target, parsed)
+        this.onPassThrough(this.target, data.target, data)
       }
     }
-    else if(type === "webrtc:offer") {
+    else if(type === "offer") {
       this.handleOffer(data);
     }
-    else if(type === "webrtc:answer") {
+    else if(type === "answer") {
       this.setRemoteDescription(data.sdp);
     }
-    else if(type === "webrtc:ice-candidate") {
+    else if(type === "ice-candidate") {
+      console.log(data);
       this.addIceCandidate(data.candidate);
     }
     else if(this.onMessage) {
-      this.onMessage(type, { source: this.target, ...data });
+      this.onMessage(type, { ...data, source: this.target });
     }
   }
 
@@ -116,7 +121,7 @@ export default class WebRTCConnection {
       this.msgChannel.send(JSON.stringify({ type, ...data }));
     }
     else {
-      this.sendFunc(type, data);
+      this.sendFunc(type, { ...data, type: 'webrtc:'+type });
     }
   }
 }

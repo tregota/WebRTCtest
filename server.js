@@ -53,6 +53,8 @@ const app = uWS.App().ws('/:room', {
     }
     const data = JSON.parse(decoded);
     console.log(decoded.substring(0, 50));
+
+    // webrtc passthrough
     if(data.type.startsWith('webrtc:')) {
       if (data.target in sockets) {
         sockets[data.target].send(JSON.stringify({ ...data, source: ws.id }), false, true);

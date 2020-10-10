@@ -10,6 +10,7 @@ export default function useWebSocket({
   const forceUpdate = useCallback(() => updateState({}), []);
   const webSocket = useRef();
   const observers = useRef({});
+  const patternObservers = useRef({});
 
   const send = (msg) => {
     if(webSocket.current === null) {
@@ -20,15 +21,20 @@ export default function useWebSocket({
     return true;
   }
 
-  const emitEvent = (type, source, data) => {
-    if(source && type+':'+source in observers.current) {
-      observers.current[type+':'+source](data);
-      return true;
-    }
-    else if(type in observers.current) {
+  const emitEvent = (type, data) => {
+    if(type in observers.current) {
       observers.current[type](data);
       return true;
     }
+
+    for (const [regex, func] of Object.values(patternObservers.current)) {
+      console.log(regex, type.match(regex));
+      if (type.match(regex)) {
+        func(data);
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -78,11 +84,10 @@ export default function useWebSocket({
 
         debug && console.log('WebSocket received', event.data)
 
-        const parsed = JSON.parse(event.data);
-        const { type, ...data } = parsed;
+        const data = JSON.parse(event.data);
 
-        if(!emitEvent(type, data.source, data)) {
-          emitEvent('default', data.source, parsed)
+        if(!emitEvent(data.type, data)) {
+          emitEvent('default', data)
         }
       }
       catch(e) {
@@ -119,8 +124,14 @@ export default function useWebSocket({
     close: () => {
       return webSocket.current.close();
     },
-    on: (type, func) => observers.current[type] = func,
-    onFrom: (type, source, func) => observers.current[type+':'+source] = func,
+    on: (type, func) => {
+      if(Object.prototype.toString.call(type) === '[object RegExp]') {
+        patternObservers.current[type] = [type, func];
+      }
+      else {
+        observers.current[type] = func;
+      }
+    },
     isOpen: () => webSocket.current && webSocket.current.readyState === 1
   }
 }

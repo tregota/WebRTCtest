@@ -43,19 +43,13 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
     onConnection(connection);
   }
 
-  ws.on("webrtc:offer", (data) => {
-    connect(data.source, data);
-  });
-
-  ws.on("webrtc:answer", (data) => {
+  ws.on(/^webrtc:/, data => {
+    const type = data.type.substring(7);
     if(data.source in connections) {
-      connections[data.source].setRemoteDescription(data.sdp);
+      connections[data.source].handleMessage({ ...data, type });
     }
-  });
-
-  ws.on("webrtc:ice-candidate", (data) => {
-    if(data.source in connections) {
-      connections[data.source].addIceCandidate(data.candidate);
+    else if(type === 'offer') {
+      connect(data.source, data);
     }
   });
 

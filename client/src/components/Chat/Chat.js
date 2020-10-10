@@ -171,7 +171,7 @@ const Chat = ({classes}) => {
     <div className={classes.wrapper}>
       { ws.isOpen() && users.length ? 
         <div className={classes.users}>
-          {users.map((user, idx) => 
+          {users.filter(user => user.online).map((user, idx) => 
             <div className={user.id in wRTC.connections && wRTC.connections[user.id].connectionState === 'connected' ? classes.userConnected : classes.user} key={user.id}>
               <PersonRoundedIcon className={classes.userIcon} />
               {user.name || user.id}
