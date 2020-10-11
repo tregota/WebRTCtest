@@ -171,7 +171,7 @@ const Chat = ({classes}) => {
   }
 
   const stream = async () => {
-    userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+    userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true, video: true, audio: true });
     ownVideo.current.srcObject = userStream.current;
     for(const connection of Object.values(wRTC.connections)) {
       const senders = connection.rawConnection.getSenders();
@@ -184,8 +184,6 @@ const Chat = ({classes}) => {
       }
       connection.rawConnection.addStream(userStream.current);
     }
-
-
   }
 
   return (
@@ -199,8 +197,8 @@ const Chat = ({classes}) => {
               </div>)
             }
           </div>
-          : undefined
-        }
+        : undefined
+      }
       <video className={classes.fullscreenVideo} autoPlay ref={fullscreenVideo} /> 
       <video className={classes.ownVideo} autoPlay ref={ownVideo} />
       <div className={classes.wrapper}>
@@ -228,11 +226,8 @@ const Chat = ({classes}) => {
           variant="outlined"
           multiline={true}
         />
-        {/* <footer className={classes.pageFooter} ref={logElemRef}>
-          {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
-        </footer> */}
       </div>
-      {/* <button onClick={() => stream()}>stream</button> */}
+      <button onClick={() => stream()}>stream</button>
     </React.Fragment>
   )
 };
