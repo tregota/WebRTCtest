@@ -12,14 +12,14 @@ export default function useWebSocket({
   const observers = useRef({});
   const patternObservers = useRef({});
 
-  const send = (msg) => {
+  const send = useCallback((msg) => {
     if(webSocket.current === null) {
       return false;
     }
     debug && msg !== 'ping' && console.log('WebSocket sending', msg)
     webSocket.current.send(msg); 
     return true;
-  }
+  }, [debug]);
 
   const emitEvent = (type, data) => {
     if(type in observers.current) {
@@ -116,7 +116,7 @@ export default function useWebSocket({
         webSocket.current.close();
       }
     }
-  }, [keepAlive, protocols, url, forceUpdate]);
+  }, [keepAlive, protocols, url, debug, send, forceUpdate]);
 
   return {
     send: (type, payload) => send( payload ? JSON.stringify({ type, ...payload }) : type ),

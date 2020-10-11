@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import {isMobile} from 'react-device-detect';
 import { withStyles } from '@material-ui/core/styles';
 import PersonRoundedIcon from '@material-ui/icons/PersonRounded';
 import useWebSocket from '../../hooks/useWebSocket';
@@ -45,7 +46,7 @@ const styles = {
     background: "#ecffec"
   },
   chat: {
-    height: 'calc(100vh - 116px)',
+    height: 'calc(var(--vh, 1vh)*100 - 116px)',
     padding: '0 20px 20px 20px',
     display: 'flex',
     flexDirection: 'column',
@@ -59,6 +60,9 @@ const styles = {
     '& textarea': {
       zIndex: 1
     },
+    '& input': {
+      zIndex: 1
+    },
     '& fieldset': {
       background: 'white'
     },
@@ -67,9 +71,9 @@ const styles = {
       position: "absolute",
       display: "block",
       borderStyle: "solid",
-      borderWidth: "10px 0 0 11px",
+      borderWidth: "9px 0 0 11px",
       borderColor: "rgba(0, 0, 0, 0.23) transparent transparent transparent",
-      bottom: "10px",
+      bottom: "11px",
       right: "29px",
     }
   },
@@ -79,6 +83,7 @@ const styles = {
     top: 0,
     width: '100%',
     maxHeight: '100%',
+    pointerEvents: 'none'
   },
   ownVideo: {
     position: 'fixed',
@@ -98,21 +103,20 @@ const Chat = ({classes}) => {
     setChatLines((chatLines) => [...chatLines, { userId, message: message }]);
   }
 
-  // logging
-  const [logLines, setLogLines] = useState([]);
-  const writeToLog = (text) => {
-    setLogLines((logLines) => [...logLines, text]);
-  }
-  const logElemRef = useRef(null);
-  useEffect(() => {
-    if(logElemRef.current) logElemRef.current.scrollTop = logElemRef.current.scrollHeight;
-  }, [logLines]);
   // webrtc stuff
   const ownVideo = useRef();
   const fullscreenVideo = useRef();
   const userStream = useRef(null);
 
   useEffect(() => {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+
+    const resizeEvent = window.addEventListener('resize', () => {
+      // We execute the same script as before
+      let vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    });
     // if(userStream.current == null && navigator.mediaDevices) {
     //   navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(stream => {
     //     userVideo.current.srcObject = stream;
@@ -125,6 +129,9 @@ const Chat = ({classes}) => {
     //     userStream.current = stream;
     //   });
     // }
+    return () => {
+      window.removeEventListener(resizeEvent);
+    }
   }, []);
 
   let room = window.location.pathname.substring(1);
@@ -151,7 +158,7 @@ const Chat = ({classes}) => {
     setUsers((users) => [...users.filter(u => u.id !== data.user.id), data.user]);
   });
   ws.on("close", () => {
-    writeToLog("websocket disconnected");
+    console.log("websocket disconnected");
   });
 
   const wRTC = useWebRTC(ws, {
@@ -168,7 +175,7 @@ const Chat = ({classes}) => {
 
   const call = async (callUsers) => {
     callUsers.forEach(user => {
-      writeToLog('calling: ' + user.name);
+      console.log('calling: ' + user.name);
       wRTC.connect(user.id);
     });
     
@@ -196,6 +203,15 @@ const Chat = ({classes}) => {
     }
   }
 
+  const fullscreen = () => {
+    if (fullscreenVideo.current.requestFullscreen) 
+      fullscreenVideo.current.requestFullscreen();
+    else if (fullscreenVideo.current.webkitRequestFullscreen) 
+      fullscreenVideo.current.webkitRequestFullscreen();
+    else if (fullscreenVideo.current.msRequestFullScreen) 
+      fullscreenVideo.current.msRequestFullScreen();
+  }
+
   return (
     <React.Fragment>
       { ws.isOpen() && users.length ? 
@@ -210,7 +226,7 @@ const Chat = ({classes}) => {
         : undefined
       }
       <video className={classes.fullscreenVideo} autoPlay ref={fullscreenVideo} /> 
-      <video className={classes.ownVideo} autoPlay ref={ownVideo} />
+      <video className={classes.ownVideo} autoPlay muted ref={ownVideo} />
       <div className={classes.wrapper}>
         <div className={classes.chat}>
           {chatLines.map((line, idx) => <Message key={idx} users={users} userId={line.userId} message={line.message} outgoing={line.userId==="me"} />)}
@@ -234,10 +250,11 @@ const Chat = ({classes}) => {
           }}
           placeholder="message"
           variant="outlined"
-          multiline={true}
+          multiline={!isMobile}
         />
       </div>
-      <button onClick={() => stream()}>stream</button>
+      { navigator.mediaDevices && <button onClick={() => stream()}>stream</button> }
+      <button onClick={() => fullscreen()}>fullscreen</button> 
     </React.Fragment>
   )
 };

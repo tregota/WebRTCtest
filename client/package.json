@@ -11,6 +11,7 @@
     "@testing-library/user-event": "^7.1.2",
     "fontsource-roboto": "^3.0.3",
     "react": "^16.13.1",
+    "react-device-detect": "^1.14.0",
     "react-dom": "^16.13.1",
     "react-scripts": "3.4.3"
   },

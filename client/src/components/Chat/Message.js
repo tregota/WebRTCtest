@@ -16,7 +16,7 @@ const styles = {
     color: "#FFFFFF",
     fontFamily: "Arial",
     fontSize: "20px",
-    borderRadius: "7px",
+    borderRadius: "4px",
     boxShadow: "5px 5px 5px -3px rgba(163, 163, 163, 0.4)",
     "&:after": {
       content: '""',
@@ -42,7 +42,7 @@ const styles = {
     color: "#FFFFFF",
     fontFamily: "Arial",
     fontSize: "20px",
-    borderRadius: "7px",
+    borderRadius: "4px",
     boxShadow: "5px 5px 5px -3px rgba(163, 163, 163, 0.4)",
     "&:after": {
       content: '""',
