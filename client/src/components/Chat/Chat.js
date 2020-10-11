@@ -45,8 +45,8 @@ const styles = {
     background: "#ecffec"
   },
   chat: {
-    height: 'calc(100vh - 106px)',
-    padding: '0 20px 10px 20px',
+    height: 'calc(100vh - 116px)',
+    padding: '0 20px 20px 20px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-end',
@@ -232,7 +232,7 @@ const Chat = ({classes}) => {
           {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
         </footer> */}
       </div>
-      <button onClick={() => stream()}>stream</button>
+      {/* <button onClick={() => stream()}>stream</button> */}
     </React.Fragment>
   )
 };
