@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {isMobile} from 'react-device-detect';
 import { withStyles } from '@material-ui/core/styles';
-import PersonRoundedIcon from '@material-ui/icons/PersonRounded';
 import useWebSocket from '../../hooks/useWebSocket';
 import useWebRTC from '../../hooks/useWebRTC';
 import TextField from '@material-ui/core/TextField';
 import Message from './Message'
+import Status from './Status'
 
 const styles = {  
   wrapper: {
@@ -99,8 +99,8 @@ const Chat = ({classes}) => {
   const forceUpdate = useCallback(() => updateState({}), []);
   const [users, setUsers] = useState([]);
   const [chatLines, setChatLines] = useState([]);
-  const newMessage = (userId, message) => {
-    setChatLines((chatLines) => [...chatLines, { userId, message: message }]);
+  const newMessage = (userId, text, type="message") => {
+    setChatLines((chatLines) => [...chatLines, { userId, text, type }]);
   }
 
   // webrtc stuff
@@ -111,26 +111,13 @@ const Chat = ({classes}) => {
   useEffect(() => {
     let vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
-
     const resizeEvent = window.addEventListener('resize', () => {
-      // We execute the same script as before
       let vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     });
-    // if(userStream.current == null && navigator.mediaDevices) {
-    //   navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(stream => {
-    //     userVideo.current.srcObject = stream;
-    //     userStream.current = stream;
-    //   });
-    // }
-    // if(userStream.current == null && navigator.mediaDevices) {
-    //   navigator.mediaDevices.getDisplayMedia({ cursor: true }).then(stream => {
-    //     userVideo.current.srcObject = stream;
-    //     userStream.current = stream;
-    //   });
-    // }
+
     return () => {
-      window.removeEventListener(resizeEvent);
+      window.removeEventListener('resize', resizeEvent);
     }
   }, []);
 
@@ -166,8 +153,9 @@ const Chat = ({classes}) => {
       con.addEventListener('track', (e) => {
         fullscreenVideo.current.srcObject = e.streams[0];
       })
+      newMessage(con.target, 'is online', 'status');
     },
-    allowPassThrough: true
+    allowPassThrough: false
   });
   wRTC.on('message', (message) => {
     newMessage(message.source, message.data);
@@ -178,8 +166,6 @@ const Chat = ({classes}) => {
       console.log('calling: ' + user.name);
       wRTC.connect(user.id);
     });
-    
-    // userStream.current && userStream.current.getTracks().forEach(track => connection.addTrack(track, userStream.current));
   }
 
   const sendMessage = (message) => {
@@ -214,7 +200,7 @@ const Chat = ({classes}) => {
 
   return (
     <React.Fragment>
-      { ws.isOpen() && users.length ? 
+      {/* { ws.isOpen() && users.length ? 
           <div className={classes.users}>
             {users.filter(user => user.online).map((user, idx) => 
               <div className={user.id in wRTC.connections && wRTC.connections[user.id].connectionState === 'connected' ? classes.userConnected : classes.user} key={user.id}>
@@ -224,12 +210,19 @@ const Chat = ({classes}) => {
             }
           </div>
         : undefined
-      }
+      } */}
       <video className={classes.fullscreenVideo} autoPlay ref={fullscreenVideo} /> 
       <video className={classes.ownVideo} autoPlay muted ref={ownVideo} />
       <div className={classes.wrapper}>
         <div className={classes.chat}>
-          {chatLines.map((line, idx) => <Message key={idx} users={users} userId={line.userId} message={line.message} outgoing={line.userId==="me"} />)}
+          {chatLines.map((line, idx) => {
+            if(line.type === 'message') {
+              return <Message key={idx} users={users} userId={line.userId} message={line.text} outgoing={line.userId==="me"} />;
+            }
+            else if(line.type === 'status') {
+              return <Status key={idx} users={users} userId={line.userId} status={line.text} />;
+            }
+          })}
         </div>
         <TextField
           className={classes.chatInput}

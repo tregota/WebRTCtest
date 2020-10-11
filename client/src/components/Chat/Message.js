@@ -1,5 +1,6 @@
 import React from 'react';
 import { withStyles } from '@material-ui/core/styles';
+import User from './User';
 
 const styles = {
   chatLine: {
@@ -8,9 +9,7 @@ const styles = {
   },
 
   chatMessage: {
-    marginRight: "50px",
     padding: "10px 20px",
-    textAlign: "left",
     position: "relative",
     background: "#000000",
     color: "#FFFFFF",
@@ -34,9 +33,7 @@ const styles = {
   },
   
   myMessage: {
-    marginLeft: "50px",
     padding: "10px 20px",
-    textAlign: "left",
     position: "relative",
     background: "#11bf8f",
     color: "#FFFFFF",
@@ -89,7 +86,7 @@ const Message = ({classes, users, userId, message, outgoing = false}) => {
     <div className={classes.chatLine}>
       { outgoing && <div className={classes.columnLeft} /> }
       <div className={outgoing ? classes.columnRight : classes.columnLeft} >
-        { !outgoing && <div className={classes.chatUser}>{user ? user.name + (user.online ? "" : "*") : userId}</div>}
+        { !outgoing && <div className={classes.chatUser}><User user={user} userId={userId} /></div>}
         <div className={outgoing ? classes.myMessage : classes.chatMessage}>{message.split('\n').map((p, idx) => <div key={idx}>{p}</div>)}</div>
       </div>
       { !outgoing && <div className={classes.columnRight} /> }
