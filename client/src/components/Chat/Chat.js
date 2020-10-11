@@ -61,6 +61,16 @@ const styles = {
     },
     '& fieldset': {
       background: 'white'
+    },
+    "&:after": {
+      content: '""',
+      position: "absolute",
+      display: "block",
+      borderStyle: "solid",
+      borderWidth: "10px 0 0 11px",
+      borderColor: "rgba(0, 0, 0, 0.23) transparent transparent transparent",
+      bottom: "10px",
+      right: "29px",
     }
   },
   fullscreenVideo: {
