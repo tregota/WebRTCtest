@@ -6,7 +6,7 @@ const styles = {
   chatLine: {
     display: "flex",
     alignItems: "center",
-    marginTop: "10px"
+    marginBottom: "10px"
   },
 
   status: {
@@ -15,10 +15,7 @@ const styles = {
     textAlign: "left",
     color: "#000",
     fontFamily: "Arial",
-
-    
     background: "#fff",
-    color: "#000",
     border: "1px solid black",
     borderRadius: "4px",
     boxShadow: "5px 5px 5px -3px rgba(163, 163, 163, 0.4)",

@@ -5,10 +5,12 @@ import User from './User';
 const styles = {
   chatLine: {
     display: "flex",
-    marginTop: "30px"
+    marginBottom: "25px"
   },
 
   chatMessage: {
+    whiteSpace: 'pre',
+    textAlign: 'left',
     padding: "10px 20px",
     position: "relative",
     background: "#000000",
@@ -33,6 +35,8 @@ const styles = {
   },
   
   myMessage: {
+    whiteSpace: 'pre',
+    textAlign: 'left',
     padding: "10px 20px",
     position: "relative",
     background: "#11bf8f",
@@ -58,10 +62,7 @@ const styles = {
 
   chatUser: {
     alignSelf: "flex-end",
-    marginBottom: "-20px",
-    marginRight: "-5px",
-    marginLeft: 0,
-    margin: "0 0 0 -8.5px",
+    margin: "0 -5px -20px 0",
     fontWeight: "bold",
     textAlign: "left",
     position: "relative",
@@ -84,12 +85,10 @@ const Message = ({classes, users, userId, message, outgoing = false}) => {
   const user = users.find(u => u.id === userId);
   return (
     <div className={classes.chatLine}>
-      { outgoing && <div className={classes.columnLeft} /> }
       <div className={outgoing ? classes.columnRight : classes.columnLeft} >
         { !outgoing && <div className={classes.chatUser}><User user={user} userId={userId} /></div>}
-        <div className={outgoing ? classes.myMessage : classes.chatMessage}>{message.split('\n').map((p, idx) => <div key={idx}>{p}</div>)}</div>
+        <div className={outgoing ? classes.myMessage : classes.chatMessage}>{message}</div>
       </div>
-      { !outgoing && <div className={classes.columnRight} /> }
     </div>
   )
 };

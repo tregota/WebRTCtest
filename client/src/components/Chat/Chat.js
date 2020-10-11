@@ -140,8 +140,10 @@ const Chat = ({classes}) => {
   ws.on("user:disconnect", (data) => {
     setUsers((users) => [...users.filter(u => u.id !== data.id), { ...users.find(u => u.id === data.id), online: false }]);
     wRTC.close(data.id);
+    newMessage(data.id, 'disconnected', 'status');
   });
   ws.on("user:rename", (data) => {
+    newMessage(data.user.id, 'renamed to '+data.user.name, 'status');
     setUsers((users) => [...users.filter(u => u.id !== data.user.id), data.user]);
   });
   ws.on("close", () => {
@@ -150,11 +152,12 @@ const Chat = ({classes}) => {
 
   const wRTC = useWebRTC(ws, {
     onConnection: (con) => {
-      con.addEventListener('track', (e) => {
+      con.addEventListener('track', e => {
         fullscreenVideo.current.srcObject = e.streams[0];
       })
       newMessage(con.target, 'is online', 'status');
     },
+    
     allowPassThrough: false
   });
   wRTC.on('message', (message) => {
@@ -216,12 +219,10 @@ const Chat = ({classes}) => {
       <div className={classes.wrapper}>
         <div className={classes.chat}>
           {chatLines.map((line, idx) => {
-            if(line.type === 'message') {
-              return <Message key={idx} users={users} userId={line.userId} message={line.text} outgoing={line.userId==="me"} />;
-            }
-            else if(line.type === 'status') {
+            if(line.type === 'status') {
               return <Status key={idx} users={users} userId={line.userId} status={line.text} />;
             }
+            return <Message key={idx} users={users} userId={line.userId} message={line.text} outgoing={line.userId==="me"} />;
           })}
         </div>
         <TextField
