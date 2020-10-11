@@ -6,17 +6,9 @@ import useWebRTC from '../../hooks/useWebRTC';
 import TextField from '@material-ui/core/TextField';
 import Message from './Message'
 
-const styles = {
+const styles = {  
   wrapper: {
-    display: "flex",
-    flexDirection: "column",
-    minHeight: "100vh",
-    "& > *": {
-      padding: "20px"
-    }
-  },
-  pageMain: {
-    flexGrow: 1,
+    minHeight: "100vh"
   },
   pageFooter: {
     textAlign: "left",
@@ -53,7 +45,37 @@ const styles = {
     background: "#ecffec"
   },
   chat: {
-    overflow: "hidden"
+    height: 'calc(100vh - 106px)',
+    padding: '0 20px 10px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+    overflow: 'hidden'
+  },
+  chatInput: {
+    width: 'calc(100% - 40px)',
+    padding: '20px',
+    color: 'black',
+    '& textarea': {
+      zIndex: 1
+    },
+    '& fieldset': {
+      background: 'white'
+    }
+  },
+  fullscreenVideo: {
+    position: 'fixed',
+    left: 0,
+    top: 0,
+    width: '100%',
+    maxHeight: '100%',
+  },
+  ownVideo: {
+    position: 'fixed',
+    top: 10,
+    right: 10,
+    width: '200px',
+    zIndex: 2
   }
 }
 
@@ -76,8 +98,8 @@ const Chat = ({classes}) => {
     if(logElemRef.current) logElemRef.current.scrollTop = logElemRef.current.scrollHeight;
   }, [logLines]);
   // webrtc stuff
-  // const userVideo = useRef();
-  const partnerVideo = useRef();
+  const ownVideo = useRef();
+  const fullscreenVideo = useRef();
   const userStream = useRef(null);
 
   useEffect(() => {
@@ -102,8 +124,7 @@ const Chat = ({classes}) => {
 
   const ws = useWebSocket({
     url: `ws://${window.location.hostname}:5000/${room}${window.location.search}`,
-    keepAlive: 20,
-    debug: true
+    keepAlive: 20
   })
   ws.on("handshake", (data) => {
     setUsers(data.users.map(u => ({...u, online: true})));
@@ -126,10 +147,9 @@ const Chat = ({classes}) => {
   const wRTC = useWebRTC(ws, {
     onConnection: (con) => {
       con.addEventListener('track', (e) => {
-        partnerVideo.current.srcObject = e.streams[0];
+        fullscreenVideo.current.srcObject = e.streams[0];
       })
     },
-    debug: true,
     allowPassThrough: true
   });
   wRTC.on('message', (message) => {
@@ -150,9 +170,9 @@ const Chat = ({classes}) => {
     wRTC.send('message', message);
   }
 
-  const test = async () => {
-    writeToLog("test");
+  const stream = async () => {
     userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+    ownVideo.current.srcObject = userStream.current;
     for(const connection of Object.values(wRTC.connections)) {
       const senders = connection.rawConnection.getSenders();
       if(senders.length){
@@ -169,27 +189,26 @@ const Chat = ({classes}) => {
   }
 
   return (
-    <div className={classes.wrapper}>
+    <React.Fragment>
       { ws.isOpen() && users.length ? 
-        <div className={classes.users}>
-          {users.filter(user => user.online).map((user, idx) => 
-            <div className={user.id in wRTC.connections && wRTC.connections[user.id].connectionState === 'connected' ? classes.userConnected : classes.user} key={user.id}>
-              <PersonRoundedIcon className={classes.userIcon} />
-              {user.name || user.id}
-            </div>)
-          }
+          <div className={classes.users}>
+            {users.filter(user => user.online).map((user, idx) => 
+              <div className={user.id in wRTC.connections && wRTC.connections[user.id].connectionState === 'connected' ? classes.userConnected : classes.user} key={user.id}>
+                <PersonRoundedIcon className={classes.userIcon} />
+                {user.name || user.id}
+              </div>)
+            }
+          </div>
+          : undefined
+        }
+      <video className={classes.fullscreenVideo} autoPlay ref={fullscreenVideo} /> 
+      <video className={classes.ownVideo} autoPlay ref={ownVideo} />
+      <div className={classes.wrapper}>
+        <div className={classes.chat}>
+          {chatLines.map((line, idx) => <Message key={idx} users={users} userId={line.userId} message={line.message} outgoing={line.userId==="me"} />)}
         </div>
-        : undefined
-      }
-      <main className={classes.pageMain}>
-        {/* <video style={{width: 500}} autoPlay ref={userVideo} />*/}
-        <video style={{width: 500}} autoPlay ref={partnerVideo} /> 
-      </main>
-      <div className={classes.chat}>
-        {chatLines.map((line, idx) => <Message key={idx} users={users} userId={line.userId} message={line.message} outgoing={line.userId==="me"} />)}
-      </div>
-      <TextField
-          // className={classes.chatInput}
+        <TextField
+          className={classes.chatInput}
           InputProps={{
             onKeyDown: (e) => {
               if (e.key === 'Enter' && !e.ctrlKey) {
@@ -209,11 +228,12 @@ const Chat = ({classes}) => {
           variant="outlined"
           multiline={true}
         />
-      <footer className={classes.pageFooter} ref={logElemRef}>
-        {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
-        <button onClick={() => test()}>test</button>
-      </footer>
-    </div>
+        {/* <footer className={classes.pageFooter} ref={logElemRef}>
+          {logLines.map((line, idx) => <div key={idx}>{line}</div>)}
+        </footer> */}
+      </div>
+      <button onClick={() => stream()}>stream</button>
+    </React.Fragment>
   )
 };
 

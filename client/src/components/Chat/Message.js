@@ -74,12 +74,12 @@ const styles = {
     display: "flex",
     position: "relative",
     flexGrow: 1,
-    justifyContent: "flex-end"
   },
   columnRight: {
     display: "flex",
     position: "relative",
     flexGrow: 1,
+    justifyContent: "flex-end"
   }
 }
 
