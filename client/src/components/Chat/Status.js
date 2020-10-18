@@ -10,6 +10,7 @@ const styles = {
   },
 
   status: {
+    zIndex: 1,
     fontWeight: "bold",
     padding: "5px 20px",
     textAlign: "left",

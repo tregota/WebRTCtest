@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import WebRTCConnection from '../classes/WebRTCConnection'
+import NegotiatingRTCConnection from '../classes/NegotiatingRTCConnection'
 
 
 
@@ -10,9 +10,9 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
   const observers = useRef({});
 
   const connect = (target, offer) => {
-    const connection = new WebRTCConnection({
+    const connection = new NegotiatingRTCConnection({
       target,
-      sendFunc: (type, data) => ws.send(type, { ...data, target }),
+      fallbackSend: (type, data) => ws.send('webrtc:'+type, { target, ...data }),
       offer,
       onMessage: (type, data) => {
         return type in observers.current ? observers.current[type](data) : null; 
@@ -20,7 +20,7 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
       debug,
       onPassThrough: allowPassThrough === true ? (data) => {
         if(data.target && data.target in connections) {
-          connections[data.target].send(data.type, { ...data, source: target });
+          connections[data.target].send(data.type, { ...data, source: target, route: [...data.route, target] });
           return true;
         }
         return false;
@@ -29,8 +29,8 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
     setConnections(connections => ({ ...connections, [target]: connection }));
 
     connection.addEventListener('connectionstatechange', e => {
-      debug && console.log('WebRTC connection to', target, connection.rawConnection.connectionState);
-      switch(connection.rawConnection.connectionState) {
+      debug && console.log('WebRTC connection to', target, connection.rtcConnection.connectionState);
+      switch(connection.rtcConnection.connectionState) {
         case "failed":
         case "disconnected":
         case "closed":
@@ -46,7 +46,7 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
   }
 
   ws.on(/^webrtc:/, data => {
-    const type = data.type.substring(7);
+    const type = data.type.substring(7); // remove "webrtc:" prefix
     if(data.source in connections) {
       connections[data.source].handleMessage({ ...data, type });
     }
@@ -79,7 +79,7 @@ export default function useWebRTC(ws, { onConnection, debug, allowPassThrough })
     },
     close: (target) => {
       if(target in connections) {
-        connections[target].rawConnection.close()
+        connections[target].rtcConnection.close()
         setConnections( ({ [target]: omit, ...rest }) => rest);
       }
     }

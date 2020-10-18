@@ -107,6 +107,7 @@ const Chat = ({classes}) => {
   const ownVideo = useRef();
   const fullscreenVideo = useRef();
   const userStream = useRef(null);
+  const remoteStream = useRef(null);
 
   useEffect(() => {
     let vh = window.innerHeight * 0.01;
@@ -153,7 +154,14 @@ const Chat = ({classes}) => {
   const wRTC = useWebRTC(ws, {
     onConnection: (con) => {
       con.addEventListener('track', e => {
-        fullscreenVideo.current.srcObject = e.streams[0];
+        if(!remoteStream.current || remoteStream.current.getTracks().filter(t => t.kind === e.track.kind).length > 0) {
+          newMessage(con.target, 'is streaming', 'status');
+          remoteStream.current = new MediaStream([e.track]);
+          fullscreenVideo.current.srcObject = remoteStream.current;
+        }
+        else {
+          remoteStream.current.addTrack(e.track)
+        }
       })
       newMessage(con.target, 'is online', 'status');
     },
@@ -180,15 +188,24 @@ const Chat = ({classes}) => {
     userStream.current = await navigator.mediaDevices.getDisplayMedia({ cursor: true, video: true, audio: true });
     ownVideo.current.srcObject = userStream.current;
     for(const connection of Object.values(wRTC.connections)) {
-      const senders = connection.rawConnection.getSenders();
+      const senders = connection.rtcConnection.getSenders();
       if(senders.length){
-        if ("removeTrack" in connection.rawConnection) {
-          connection.rawConnection.removeTrack(connection.rawConnection.getSenders()[0]);
+        if ("removeTrack" in connection.rtcConnection) {
+          for(const sender of senders) {
+            connection.rtcConnection.removeTrack(sender);
+          }
         } else {
-          connection.rawConnection.removeStream(userStream.current);
+          connection.rtcConnection.removeStream(userStream.current);
         }
       }
-      connection.rawConnection.addStream(userStream.current);
+      if ("addTrack" in connection.rtcConnection) {
+        for(const track of userStream.current.getTracks()) {
+          connection.rtcConnection.addTrack(track);
+        }
+      } else {
+        connection.rtcConnection.addStream(userStream.current);
+      }
+      
     }
   }
 
@@ -252,7 +269,5 @@ const Chat = ({classes}) => {
     </React.Fragment>
   )
 };
-
-// Chat.defaultProps = {};
 
 export default withStyles(styles)(Chat);
